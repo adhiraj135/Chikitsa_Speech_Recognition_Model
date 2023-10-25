@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Speech Recognition</title>
+</head>
+<body>
+    <h1>Speech Recognition</h1>
+
+    <!-- Audio recording section -->
+    <button id="record-button">Record</button>
+    <button id="stop-button" disabled>Stop</button>
+    <audio id="audio-player" controls></audio>
+
+    <hr>
+
+    <!-- Detected Text Display -->
+    <h2>Detected Text:</h2>
+    <div id="detected-text"></div>
+
+    <script>
+        const recordButton = document.getElementById('record-button');
+        const stopButton = document.getElementById('stop-button');
+        const audioPlayer = document.getElementById('audio-player');
+        let audioChunks = [];
+
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(stream => {
+                const mediaRecorder = new MediaRecorder(stream);
+
+                recordButton.addEventListener('click', () => {
+                    audioChunks = [];
+                    mediaRecorder.start();
+                    recordButton.disabled = true;
+                    stopButton.disabled = false;
+                });
+
+                stopButton.addEventListener('click', () => {
+                    mediaRecorder.stop();
+                    recordButton.disabled = false;
+                    stopButton.disabled = true;
+                });
+
+                mediaRecorder.ondataavailable = event => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
+                };
+
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    audioPlayer.src = audioUrl;
+
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        const audioData = reader.result.split(',')[1];  // Get base64 data
+                        sendAudioData(audioData);
+                    };
+                    reader.readAsDataURL(audioBlob);
+                };
+            })
+            .catch(error => {
+                console.error('Error accessing microphone:', error);
+            });
+
+        // Function to update the detected text on the page
+        function updateDetectedText(text) {
+            const detectedTextElement = document.getElementById('detected-text');
+            detectedTextElement.innerHTML = text;
+        }
+
+        // Function to send audio data and update detected text
+        function sendAudioData(data) {
+            fetch('/save_audio', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ audio_data: data })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log(data.message);
+                if (data.text) {
+                    updateDetectedText(data.text);
+                }
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+**/*.h5
+/venv/
+*.h5
+*.pickle
+**/*.pickle
